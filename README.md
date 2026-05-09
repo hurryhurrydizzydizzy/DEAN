@@ -120,17 +120,17 @@ python naming_server.py
 
 ### Machine B (Monitoring)
 ```powershell
-$env:NAMING_SERVER_HOST = "192.168.1.10"   # Machine A IP
+$env:NAMING_SERVER_HOST = "<NAMING_SERVER_IP>"
 $env:NAMING_SERVER_PORT = "5050"
 $env:MONITORING_SERVER_BIND_HOST = "0.0.0.0"
 $env:MONITORING_SERVER_PORT = "6060"
-$env:MONITORING_SERVER_ADVERTISE_HOST = "192.168.1.20"  # Machine B IP
+$env:MONITORING_SERVER_ADVERTISE_HOST = "<MONITORING_SERVER_IP>"
 python monitoring_server.py
 ```
 
 ### Machine C/D/E (Sensors)
 ```powershell
-$env:NAMING_SERVER_HOST = "192.168.1.10"   # Machine A IP
+$env:NAMING_SERVER_HOST = "<NAMING_SERVER_IP>"
 $env:NAMING_SERVER_PORT = "5050"
 python sensor_client.py
 ```
