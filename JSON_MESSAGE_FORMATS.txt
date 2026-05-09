@@ -1,0 +1,42 @@
+REGISTRATION MESSAGE
+    MONITORING SERVER -> NAMING SERVER
+    {
+        "type": "register",
+        "name": "monitoring.server.main",
+        "host": "xxx.xxx.x.x",
+        "port": 6060
+    }
+
+LOOKUP MESSAGE
+    SENSOR -> NAMING SERVER
+    {
+        "type": "lookup",
+        "name": "monitoring.server.main"
+    }
+
+NAMING SERVER RESPONSE
+    {
+        "status": "ok",
+        "host": "xxx.xxx.x.x",
+        "port": 6060
+    }
+
+ALERT MESSAGE
+    SENSOR -> MONITORING SERVER
+    {
+        "type": "alert",
+        "sensor_id": "SensorX",
+        "event": "fire_detected",
+        "location": "Room XXX",
+        "timestamp": 4,
+        "detected_at_ns": 1778343227968146600
+    }   
+
+EMERGENCY BROADCAST
+    MONITORING SERVER -> ALL SENSORS
+    {
+        "type": "emergency_update",
+        "status": "confirmed_fire",
+        "first_detected_by": "SensorX",
+        "lamport_time": 11
+    }
