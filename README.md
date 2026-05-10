@@ -1,4 +1,4 @@
-# Distributed Fire Alert Demo (Lamport Clock)
+# Decentralized Emergency Alert Network (Lamport Clock)
 
 This project is a small distributed-system simulation with three components:
 
@@ -10,24 +10,98 @@ The system uses Lamport logical clocks to track causal ordering between distribu
 
 ## Architecture
 
-### Naming Server
-- Stores mapping: `name -> (host, port)`.
-- Monitoring server registers as `monitoring.server.main`.
-- Sensors look up `monitoring.server.main` before connecting.
+### System Topology
 
-### Monitoring Server
-- Accepts alert messages from sensors.
-- Updates Lamport clock using incoming sensor timestamp.
+```
+                           ┌──────────────────┐
+                           │ NAMING SERVER    │
+                           │   (Port 5050)    │
+                           └────────┬─────────┘
+                                    │
+                            (Register/Lookup)
+                                    │
+                                    ▼
+                           ┌──────────────────┐
+                           │ MONITORING       │
+                           │ SERVER           │
+                           │ (Port 6060)      │
+                           └────┬─┬─┬─┬───────┘
+                                │ │ │ │
+                  ┌─────────────┘ │ │ └──────────────┐
+                  │               │ │                │
+                  ▼               ▼ ▼                ▼
+            ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+            │  Sensor A   │ │  Sensor B   │ │  Sensor C   │ ...
+            │ (no delay)  │ │  (2s delay) │ │  (3s delay) │
+            └─────────────┘ └─────────────┘ └─────────────┘
+```
+
+### Component Roles
+
+**Naming Server** (Port 5050)
+- Service registry for service discovery
+- Monitoring Server registers once at startup
+- Each sensor looks up address once at startup
+- Then sensors connect directly to Monitoring Server
+
+**Monitoring Server** (Port 6060)
+- Maintains persistent connections from all sensors
+- Receives alert messages from each sensor
+- Updates Lamport clock using incoming sensor timestamp
 - Tracks and prints event order based on:
-	- sensor detection timestamp (`detected_at_ns`) as primary sort key
-	- server-observed Lamport time as tie-breaker
-- Broadcasts emergency update to all connected sensors.
+  - sensor detection timestamp (`detected_at_ns`) as primary sort key
+  - server-observed Lamport time as tie-breaker
+- Broadcasts emergency update to all connected sensors
 
-### Sensor Client
-- Looks up monitoring server via naming server.
-- Sends random fire/smoke/heat events.
-- Uses per-sensor configured delay to simulate network/send delay.
-- Receives `emergency_update` messages and updates local Lamport clock.
+**Sensor Client**
+- Discovers Monitoring Server via Naming Server
+- Maintains persistent connection to Monitoring Server
+- Sends random fire/smoke/heat events
+- Uses per-sensor configured delay to simulate network/send delay
+- Receives `emergency_update` messages and updates local Lamport clock
+
+### Connection Flow
+
+```
+Step 1: Monitoring Server Registers
+Monitoring Server → Naming Server (5050)
+  Send: {
+    "type": "register",
+    "name": "monitoring.server.main",
+    "host": "127.0.0.1",
+    "port": 6060
+  }
+
+Step 2: Sensors Lookup Address
+Sensor A → Naming Server (5050)
+  Send: {"type": "lookup", "name": "monitoring.server.main"}
+  Receive: {"host": "127.0.0.1", "port": 6060}
+
+(Sensors B, C, D, E do the same)
+
+Step 3: Sensors Connect to Monitoring Server
+All Sensors → Monitoring Server (6060)
+  PERSISTENT connection established (stays open)
+
+Step 4: Continuous Alert Loop
+Sensor A → Monitoring Server (6060)
+  Send: {
+    "type": "alert",
+    "sensor_id": "SensorA",
+    "event": "fire_detected",
+    "timestamp": 1,
+    "detected_at_ns": 1234567890123456
+  }
+
+Step 5: Broadcast Response
+Monitoring Server → All Sensors (A, B, C, D, E)
+  Send: {
+    "type": "emergency_update",
+    "status": "confirmed_fire",
+    "first_detected_by": "SensorA",
+    "lamport_time": 4
+  }
+```
 
 ## Project Files
 
@@ -45,17 +119,6 @@ The system uses Lamport logical clocks to track causal ordering between distribu
 All settings are in `config.py` with sensible defaults. For single-machine local runs, just run the scripts as-is.
 
 Sensor delays are pre-configured (SensorB: 2s, SensorC: 3s, SensorD: 4s, SensorE: 5s). Sensors not in `SENSOR_DELAY_BY_ID` send without delay.
-
-## Message Flow
-
-1. Monitoring server registers on naming server.
-2. Sensor performs lookup on naming server.
-3. Sensor sends alert to monitoring server:
-	 - `timestamp` (Lamport time)
-	 - `detected_at_ns` (real detection time)
-4. Monitoring server processes alert, updates Lamport clock, prints ordered view, broadcasts emergency update.
-
-See `JSON_MESSAGE_FORMATS.txt` for example payload structures.
 
 ## Run Locally (Single Machine)
 
@@ -109,8 +172,3 @@ Another process or OS reservation is using your port. Set the port env var (e.g.
 
 ### `name not found` lookup response
 Monitoring server likely has not registered yet. Start naming server first, then monitoring server, then sensors.
-
-## Notes
-
-- This is an educational/demo project for distributed ordering behavior.
-- If you need stronger reliability, next improvements could include retries, reconnect logic, heartbeats, and persistent registry state.
