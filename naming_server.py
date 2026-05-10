@@ -45,7 +45,7 @@ def handle_client(client_socket):
             if name in registry:                # Check if the name exists in the registry
                 host, port = registry[name]
                 
-                response = {
+                response = {            # Prepare the response with the address information
                     "status": "ok",
                     "host": host,
                     "port": port
@@ -57,6 +57,7 @@ def handle_client(client_socket):
                 }
             
             client_socket.send(json.dumps(response).encode())  # Send response to the client
+        
         print(f"Received message: {message}")   
     
     except Exception as e:
@@ -69,16 +70,16 @@ def handle_client(client_socket):
 # Main server loop
 # ----------------------------------------------------------------------------------------------------------------- 
 def start_server():
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)      # Create a TCP socket  
 
     try:
-        server.bind((HOST, PORT))
+        server.bind((HOST, PORT))       # Bind the server socket to the specified host and port
     except OSError as error:
         print(f"Failed to bind naming server to {HOST}:{PORT}: {error}")
         print("Try setting NAMING_SERVER_PORT to a different unused TCP port.")
         return
 
-    server.listen()
+    server.listen() # Listen for incoming connections
     
     print(f"Naming server running on {HOST}:{PORT}")
 

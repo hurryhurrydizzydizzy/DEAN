@@ -16,41 +16,42 @@ clock = LamportClock() # Initialize the Lamport clock
 clients = []    # List to keep track of connected clients
 alerts = []     # List to store received alerts for ordering purposes
 
-def broadcast(message):
+def broadcast(message):     # Broadcast a message to all connected clients
     disconnected = []
 
     for client in clients:
         try:
-            client.send(json.dumps(message).encode())
+            client.send(json.dumps(message).encode())   
         except:
             disconnected.append(client)
 
     for client in disconnected:
         clients.remove(client)
 
-def handle_sensor(client_socket):
+def handle_sensor(client_socket):       # Handle incoming messages from a connected sensor
     while True:
         try:
-            data = client_socket.recv(1024).decode()
+            data = client_socket.recv(1024).decode()    # Receive data from the sensor
             if not data:
                 break
 
-            message = json.loads(data)
+            message = json.loads(data)  # Parse the received data as JSON
 
             if message["type"] == "alert":
 
-                sensor_timestamp = message["timestamp"]
-                observed_time = clock.receive_event(sensor_timestamp)
-                detected_at_ns = message.get("detected_at_ns")
+                sensor_timestamp = message["timestamp"]                    # Get the sensor's logical timestamp from the message      
+                observed_time = clock.receive_event(sensor_timestamp)      # Update the server's Lamport clock based on the received timestamp
+                detected_at_ns = message.get("detected_at_ns")             # Get the detected_at timestamp in nanoseconds from the message (if available)
 
-                if detected_at_ns is not None:
+                # Convert to readable format for logging (if detected_at_ns is available)
+                if detected_at_ns is not None:                             
                     detected_at_local = datetime.fromtimestamp(
                         detected_at_ns / 1_000_000_000
                     ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
                 else:
                     detected_at_local = "unknown"
 
-                sensor_id = message["sensor_id"]
+                sensor_id = message["sensor_id"]    
                 
                 print(f"\nAlert from {sensor_id} at server logical time {observed_time}")
                 
@@ -62,7 +63,7 @@ def handle_sensor(client_socket):
                     "timestamp": detected_at_local,
                 })
 
-                sorted_alerts = sorted(
+                sorted_alerts = sorted(     # Sort the alerts based on Lamport timestamp, detected_at timestamp, and sensor ID for tie-breaking
                     alerts,
                     key=lambda x: (
                         x["sensor_timestamp"],
@@ -91,16 +92,16 @@ def handle_sensor(client_socket):
                     "lamport_time": observed_time
                 }
 
-                broadcast(response)
+                broadcast(response)     # Broadcast the emergency update to all connected clients
 
         except Exception as e:
             print("Error:", e)
             break
 
-    if client_socket in clients:
+    if client_socket in clients:        # Remove the client from the list of connected clients if it disconnects
         clients.remove(client_socket)
 
-    client_socket.close()       
+    client_socket.close()           # Close the connection to the sensor when done
     
 def start_server():
     global clients
