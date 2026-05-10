@@ -42,34 +42,9 @@ The system uses Lamport logical clocks to track causal ordering between distribu
 
 ## Configuration
 
-All major settings are centralized in `config.py` and can be overridden via environment variables.
+All settings are in `config.py` with sensible defaults. For single-machine local runs, just run the scripts as-is.
 
-### Naming Server
-- `NAMING_SERVER_HOST` (default: `localhost`)
-- `NAMING_SERVER_PORT` (default: `5050`)
-- `NAMING_SERVER_BIND_HOST` (default: `0.0.0.0`)
-
-Backward compatibility aliases are supported for older env names:
-- `NAMESERVER_HOST`
-- `NAMESERVER_PORT`
-
-### Monitoring Server
-- `MONITORING_SERVER_BIND_HOST` (default: `0.0.0.0`)
-- `MONITORING_SERVER_PORT` (default: `6060`)
-- `MONITORING_SERVER_ADVERTISE_HOST`
-
-`MONITORING_SERVER_ADVERTISE_HOST` is important for multi-machine runs. Set it to the real reachable IP/hostname of the monitoring server.
-
-### Sensor Delay Simulation
-
-Configured in `config.py`:
-
-- `SensorB`: `2s`
-- `SensorC`: `3s`
-- `SensorD`: `4s`
-- `SensorE`: `5s`
-
-Sensors not listed in `SENSOR_DELAY_BY_ID` send without artificial delay.
+Sensor delays are pre-configured (SensorB: 2s, SensorC: 3s, SensorD: 4s, SensorE: 5s). Sensors not in `SENSOR_DELAY_BY_ID` send without delay.
 
 ## Message Flow
 
@@ -108,51 +83,24 @@ Use different sensor IDs (for example `SensorA`, `SensorB`, `SensorC`, `SensorD`
 Example setup:
 
 - Machine A: Naming server
-- Machine B: Monitoring server
+- Machine B: Monitoring server  
 - Machine C/D/E: Sensors
 
-### Machine A (Naming)
-```powershell
-$env:NAMING_SERVER_BIND_HOST = "0.0.0.0"
-$env:NAMING_SERVER_PORT = "5050"
-python naming_server.py
-```
+All configuration defaults are in `config.py`. For multi-machine deployments, override these env vars:
 
-### Machine B (Monitoring)
-```powershell
-$env:NAMING_SERVER_HOST = "<NAMING_SERVER_IP>"
-$env:NAMING_SERVER_PORT = "5050"
-$env:MONITORING_SERVER_BIND_HOST = "0.0.0.0"
-$env:MONITORING_SERVER_PORT = "6060"
-$env:MONITORING_SERVER_ADVERTISE_HOST = "<MONITORING_SERVER_IP>"
-python monitoring_server.py
-```
+**On Monitoring Server:**
+- `NAMING_SERVER_HOST`: IP/hostname of the naming server machine
+- `MONITORING_SERVER_ADVERTISE_HOST`: The monitoring server's reachable IP (auto-detected locally; set explicitly for remote deployments)
 
-### Machine C/D/E (Sensors)
-```powershell
-$env:NAMING_SERVER_HOST = "<NAMING_SERVER_IP>"
-$env:NAMING_SERVER_PORT = "5050"
-python sensor_client.py
-```
+**On Sensor Machines:**
+- `NAMING_SERVER_HOST`: IP/hostname of the naming server machine
 
-Also ensure firewalls allow inbound TCP on configured ports (typically 5050 and 6060).
-
-## Understanding Printed Times
-
-- `timestamp=...` in monitor output is wall-clock detection time converted from `detected_at_ns`.
-- `lamport=...` is logical/causal ordering metadata, not wall-clock time.
-
-It is normal for a sensor that detected first (real time) to appear with a higher Lamport value than another event.
+Ensure firewalls allow inbound TCP on ports 5050 (naming) and 6060 (monitoring).
 
 ## Troubleshooting
 
 ### WinError 10013 on bind
-Another process or OS reservation is using your port. Change the port via env vars, for example:
-
-```powershell
-$env:NAMING_SERVER_PORT = "5051"
-python naming_server.py
-```
+Another process or OS reservation is using your port. Set the port env var (e.g., `NAMING_SERVER_PORT=5051`) before running the server.
 
 ### Sensor cannot connect to monitoring server across machines
 - Verify `MONITORING_SERVER_ADVERTISE_HOST` points to reachable monitoring host IP.
