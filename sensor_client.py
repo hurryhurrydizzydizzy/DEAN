@@ -59,7 +59,7 @@ def listen_for_updates(client_socket):      # Listen for updates from the monito
 def send_alerts(client_socket, sensor_id):      # Simulate sending alerts to the monitoring server with Lamport timestamps and optional delays based on sensor ID
     while True:
         
-        input("\nPress Enter to send an alert...")
+        input("\nPress Enter to send an alert...\n\n")  # Wait for user input to send an alert
         
         event = random.choice([
             "fire_detected",
