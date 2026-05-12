@@ -9,19 +9,19 @@ from lamport import LamportClock
 clock = LamportClock() # Initialize the Lamport clock
 
 def get_monitoring_server():        # Query the naming server to get the address of the monitoring server
-    
     ns = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     ns.connect((NAMING_SERVER_HOST, NAMING_SERVER_PORT))
-    
+
     lookup_msg = {
         "type": "lookup",
         "name": "monitoring.server.main"
     }
-    
-    ns.send(json.dumps(lookup_msg).encode())
-    response = json.loads(ns.recv(1024).decode())
+
+    ns.send((json.dumps(lookup_msg) + "\n").encode())
+    ns_file = ns.makefile('r')
+    response = json.loads(ns_file.readline())
     ns.close()
-    
+
     return response["host"], response["port"]
 
 def connect_to_monitoring_server():         # Connect to the monitoring server using the address obtained from the naming server
@@ -37,24 +37,22 @@ def connect_to_monitoring_server():         # Connect to the monitoring server u
     return client
 
 def listen_for_updates(client_socket):      # Listen for updates from the monitoring server and print them out
-    while True:
-        try:
-            data = client_socket.recv(1024) # Receive data from the monitoring server
-            
-            if not data:
-                break
-            
-            message = json.loads(data.decode())
-            
-            if message["type"] == "emergency_update":
-                
-                clock.receive_event(message["lamport_time"])    # Update the Lamport clock based on the received event's Lamport time
-                
+    f = client_socket.makefile('r')
+    try:
+        for line in f:
+            if not line:
+                continue
+            try:
+                message = json.loads(line.strip())
+            except Exception as e:
+                print("JSON parse error in listener:", e)
+                continue
+
+            if message.get("type") == "emergency_update":
+                clock.receive_event(message.get("server_lamport", message.get("lamport_time")))
                 print(f"EMERGENCY UPDATE: {message}")
-                
-        except Exception as e:
-            print("Error:", e)
-            break
+    except Exception as e:
+        print("Error:", e)
         
 def send_alerts(client_socket, sensor_id):      # Simulate sending alerts to the monitoring server with Lamport timestamps and optional delays based on sensor ID
     while True:
@@ -85,8 +83,7 @@ def send_alerts(client_socket, sensor_id):      # Simulate sending alerts to the
             "timestamp": timestamp,
             "detected_at_ns": detected_at_ns
         }
-
-        client_socket.send(json.dumps(message).encode())    # Send the alert message to the monitoring server
+        client_socket.send((json.dumps(message) + "\n").encode())    # Send the alert message to the monitoring server (newline-framed)
         print(f"Sent alert: {message}")
         
 def main():
